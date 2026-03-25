@@ -1,15 +1,16 @@
 import { Routes, Route, Navigate, useLocation } from "react-router-dom"
+import { AuthProvider } from "./context/AuthContext" // ✅ FIXED
 
 import Navbar from "./components/Navbar"
-import Home from "./pages/Home"
+import Home from "./pages/Dashboard"
 import Chat from "./pages/Chat"
 import ImageGen from "./pages/ImageGen"
-import ResumeAnalyzer from "./pages/ResumeAnalyzer"
-import NotesSummarizer from "./pages/NotesSummarizer"
+import Resume from "./pages/Resume"
+import Notes from "./pages/Notes"
 import Login from "./pages/Login"
 import Register from "./pages/Register"
 
-// 🔹 Protected Route Component
+// 🔹 Protected Route
 const ProtectedRoute = ({ children }) => {
   const token = localStorage.getItem("token")
 
@@ -20,10 +21,9 @@ const ProtectedRoute = ({ children }) => {
   return children
 }
 
-function App() {
+function AppContent() {
   const location = useLocation()
 
-  // 🔹 Hide Navbar on auth pages
   const hideNavbar =
     location.pathname === "/login" || location.pathname === "/register"
 
@@ -34,46 +34,30 @@ function App() {
 
       <Routes>
 
-        {/* Public Routes */}
+        {/* Public */}
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Protected Routes */}
+        {/* Protected */}
         <Route
           path="/chat"
-          element={
-            <ProtectedRoute>
-              <Chat />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute><Chat /></ProtectedRoute>}
         />
 
         <Route
           path="/image"
-          element={
-            <ProtectedRoute>
-              <ImageGen />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute><ImageGen /></ProtectedRoute>}
         />
 
         <Route
           path="/resume"
-          element={
-            <ProtectedRoute>
-              <ResumeAnalyzer />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute><Resume /></ProtectedRoute>}
         />
 
         <Route
           path="/notes"
-          element={
-            <ProtectedRoute>
-              <NotesSummarizer />
-            </ProtectedRoute>
-          }
+          element={<ProtectedRoute><Notes /></ProtectedRoute>}
         />
 
       </Routes>
@@ -82,4 +66,11 @@ function App() {
   )
 }
 
-export default App
+// 🔥 MAIN EXPORT
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  )
+}

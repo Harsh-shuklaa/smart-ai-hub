@@ -1,5 +1,6 @@
 import Chat from "../models/Chat.js"
 import { generateAIResponse } from "../services/aiService.js"
+import { handleCredits } from "../utils/creditHelper.js" // ✅ ADD
 
 // 🔹 Send Message
 export const sendMessage = async (req, res) => {
@@ -10,6 +11,7 @@ export const sendMessage = async (req, res) => {
       return res.status(400).json({ error: "Message required" })
     }
 
+    // 🔥 Generate AI response (same as before)
     const aiReply = await generateAIResponse(message)
     console.log("AI REPLY:", aiReply)
 
@@ -42,14 +44,27 @@ export const sendMessage = async (req, res) => {
       })
     }
 
-    // ✅ 🔥 UPDATED LINE (IMPORTANT)
-   res.json({
-  success: true,        // ✅ ADD THIS
-  reply: aiReply,
-  chat                  // ✅ ADD THIS (for future use)
-})
+    // ✅ CREDIT DEDUCT (AFTER SUCCESS)
+    const remainingCredits = await handleCredits(req.user)
+
+    // ✅ RESPONSE
+    res.json({
+      success: true,
+      reply: aiReply,
+      chat,
+      credits: remainingCredits // 🔥 ADD
+    })
 
   } catch (error) {
+
+    // ❌ CREDIT ERROR HANDLE
+    if (error.message === "No credits remaining") {
+      return res.status(403).json({
+        success: false,
+        message: error.message
+      })
+    }
+
     console.error(error)
     res.status(500).json({ error: "Server error" })
   }

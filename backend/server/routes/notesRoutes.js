@@ -1,8 +1,13 @@
 import express from "express"
-import {summarizeNotes} from "../controllers/notesController.js"
+import { summarizeNotes, getNotes } from "../controllers/notesController.js"
+import authMiddleware from "../middleware/authMiddleware.js"
 
 const router = express.Router()
 
-router.post("/",summarizeNotes)
+// 🔹 Summarize Notes (Protected)
+router.post("/summarize", authMiddleware, summarizeNotes)
+
+// 🔹 Get Notes History (Protected)
+router.get("/", authMiddleware, getNotes)
 
 export default router

@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState, useRef, useContext } from "react"
 import { sendChatMessage, fetchChats } from "../services/api"
 import { useNavigate } from "react-router-dom"
 import ReactMarkdown from "react-markdown"
+import AuthContext from "../context/AuthContext"
 
 export default function Chat() {
   const [messages, setMessages] = useState([])
@@ -9,7 +10,9 @@ export default function Chat() {
   const [chatList, setChatList] = useState([])
   const [chatId, setChatId] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [cooldown, setCooldown] = useState(false) // 🔥 FIX: prevent spam
+  const [cooldown, setCooldown] = useState(false)
+
+  const { setCredits } = useContext(AuthContext)
 
   const navigate = useNavigate()
   const bottomRef = useRef(null)
@@ -36,34 +39,21 @@ export default function Chat() {
   }
 
   useEffect(() => {
-  const initChats = async () => {
-    try {
-      const res = await fetchChats()
-      if (res?.success) {
-        setChatList(res.chats || [])
-      }
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  initChats()
-}, [])
+    loadChats()
+  }, [])
 
   // 🔹 Send message
   const handleSend = async () => {
-    // 🔥 FIX: prevent spam + multiple clicks
     if (!message.trim() || loading || cooldown) return
 
     const userMsg = message
     setMessage("")
     setLoading(true)
-    setCooldown(true) // 🔥 FIX
+    setCooldown(true)
 
-    // 🔥 FIX: unique ID for AI message
     const aiId = Date.now()
 
-    // ✅ Add user + empty AI message
+    // 🔥 Add user + loading message
     setMessages((prev) => [
       ...prev,
       { role: "user", content: userMsg, id: Date.now() + 1 },
@@ -73,14 +63,28 @@ export default function Chat() {
     try {
       const res = await sendChatMessage(userMsg, chatId)
 
-      let aiText = "No response"
+      // ✅ HANDLE FAIL CASE
+      if (!res?.success) {
+        const errorMsg = res?.message || "❌ Failed"
 
-      // 🔥 FIX: backend returns only { reply }
-      if (res?.reply) {
-        aiText = res.reply
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === aiId
+              ? { ...msg, content: errorMsg }
+              : msg
+          )
+        )
+        return
       }
 
-      // 🔥 FIX: update by ID (NOT last index)
+      // ✅ SUCCESS CASE
+      const aiText = res.reply || "No response"
+
+      // 🔥 CREDIT UPDATE
+      if (res.credits !== undefined) {
+        setCredits(res.credits)
+      }
+
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === aiId
@@ -97,21 +101,20 @@ export default function Chat() {
       setMessages((prev) =>
         prev.map((msg) =>
           msg.id === aiId
-            ? { ...msg, content: "❌ Error getting response" }
+            ? { ...msg, content: "❌ Server error" }
             : msg
         )
       )
     }
 
-    // 🔥 FIX: cooldown delay (avoid 429 error)
     setTimeout(() => {
       setCooldown(false)
-    }, 5000)
+    }, 3000)
 
     setLoading(false)
   }
 
-  // 🔹 Copy
+  // 🔹 Copy text
   const copyText = (text, index) => {
     navigator.clipboard.writeText(text || "")
 
@@ -146,10 +149,10 @@ export default function Chat() {
     <div className="flex h-screen bg-gray-200">
 
       {/* Sidebar */}
-      <div className="w-64 bg-gray-900 text-white p-4 flex flex-col">
+      <div className="w-64 bg-gray-900 text-white p-4 flex flex-col shadow-lg">
         <button
           onClick={handleNewChat}
-          className="bg-blue-600 p-2 rounded mb-4 hover:bg-blue-700 transition"
+          className="bg-blue-600 p-2 rounded mb-4 hover:bg-blue-700 transition font-semibold"
         >
           + New Chat
         </button>
@@ -159,7 +162,7 @@ export default function Chat() {
             <div
               key={chat._id}
               onClick={() => handleSelectChat(chat)}
-              className="p-2 bg-gray-700 rounded cursor-pointer hover:bg-gray-600"
+              className="p-2 bg-gray-700 rounded cursor-pointer hover:bg-gray-600 text-sm"
             >
               Chat {chat._id.slice(-4)}
             </div>
@@ -171,7 +174,7 @@ export default function Chat() {
       <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
 
         {/* Header */}
-        <div className="bg-linear-to-r from-blue-600 to-blue-500 text-white p-4 font-semibold shadow">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-500 text-white p-4 font-semibold shadow">
           SmartAI Chat 🚀
         </div>
 
@@ -210,12 +213,6 @@ export default function Chat() {
             </div>
           ))}
 
-          {loading && (
-            <div className="text-gray-500 text-sm animate-pulse">
-              🤖 Thinking...
-            </div>
-          )}
-
           <div ref={bottomRef}></div>
         </div>
 
@@ -237,7 +234,7 @@ export default function Chat() {
 
           <button
             onClick={handleSend}
-            disabled={loading || cooldown} // 🔥 FIX
+            disabled={loading || cooldown}
             className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full"
           >
             {loading ? "..." : cooldown ? "Wait..." : "Send"}
